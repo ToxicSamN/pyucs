@@ -24,6 +24,7 @@ class Parser:
                 influx_series = self._parse_data(data)
                 if influx_series:
                     for i in influx_series:
+                        logger.debug('Parsed JSON data: {}'.format(i.__str__()))
                         self.out_q.put_nowait(i)
             except queue.Empty:
                 pass
@@ -56,12 +57,7 @@ class Parser:
         logger = LOGGERS.get_logger('Parser _format_json')
         collected_time = datetime.strptime(rawdata.time_collected, '%Y-%m-%dT%H:%M:%S.%f')
         collected_time = datetime.utcfromtimestamp(collected_time.timestamp())
-        logger.info("Collection Date/Time UTC timestamp {}".format(collected_time.__str__()))
-        # utc_now = datetime.utcnow()
-        # logger.info("Curernt Date/Time UTC timestamp {}".format(utc_now.__str__()))
-        # time_delata = utc_now - collected_time
         influx_time = collected_time.__str__()
-        logger.info("Influx submitted Date/Time UTC timestamp {}".format(influx_time.__str__()))
         return {
             'time': influx_time,
             'measurement': metric_name,

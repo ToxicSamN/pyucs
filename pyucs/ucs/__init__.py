@@ -57,7 +57,8 @@ class Ucs(UcsHandle):
                                   filter_str='(rn, "{}")'.format(rn)
                                   )
 
-    def _query_mo(self, class_id, chassis=None, slot=None, vlan_id=None, name=None, service_profile=None, org=None, dn=None, rn=None):
+    def _query_mo(self, class_id, chassis=None, slot=None, vlan_id=None, name=None,
+                  service_profile=None, org=None, dn=None, rn=None):
         self._is_connected()
         if dn:
             return self.query_dn(dn=dn)
@@ -118,7 +119,8 @@ class Ucs(UcsHandle):
                                   )
         elif service_profile and isinstance(service_profile, str):
             raise UcsException(
-                "InvalidType: Parameter 'service_profile' expected type 'ucsmsdk.mometa.ls.LsServer.LsServer' and recieved 'str'")
+                "InvalidType: Parameter 'service_profile' expected type "
+                "'ucsmsdk.mometa.ls.LsServer.LsServer' and recieved 'str'")
 
         elif dn:
             self._query_mo(class_id='VnicEther',
@@ -136,7 +138,8 @@ class Ucs(UcsHandle):
                                   )
         elif service_profile and isinstance(service_profile, str):
             raise UcsException(
-                "InvalidType: Parameter 'service_profile' expected type 'ucsmsdk.mometa.ls.LsServer.LsServer' and recieved 'str'")
+                "InvalidType: Parameter 'service_profile' expected type "
+                "'ucsmsdk.mometa.ls.LsServer.LsServer' and recieved 'str'")
 
         elif dn:
             self._query_mo(class_id='VnicFc',

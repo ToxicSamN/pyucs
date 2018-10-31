@@ -15,12 +15,17 @@ class StatsCollector:
         self.thread_results = None
 
     def query_stats(self, statsq):
-        logger = LOGGERS.get_logger('StatsCollector')
-        logger.info('StatsCollector started')
+        logger = LOGGERS.get_logger('statsd')
+        logger.info('StatsCollector statsd started')
         parallelism_thread_count = cpu_count()
 
+        logger.info('Collecting all vnics')
         vnics = self.ucs.get_vnic()
+        logger.info('Found {} vnics'.format(len(vnics)))
+
+        logger.info('Collecting all vhbas')
         vhbas = self.ucs.get_vhba()
+        logger.info('Found {} vhbas'.format(len(vhbas)))
 
         # create thread pool args and launch _query_thread_pool
         #  define the threading group sizes. This will pair down the number of entities
