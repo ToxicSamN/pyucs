@@ -1,4 +1,5 @@
 
+import setuptools
 from setuptools import setup
 
 with open('requirements.txt') as f:
@@ -9,11 +10,11 @@ with open("README.md", "r") as fh:
 
 setup(
     name='pyucs-samn',
-    version='1.1.0',
+    version='1.5.0',
     description='Customized UCS Python Module',
 	long_description=long_description,
     license='Apache',
-    packages=['pyucs'],
+    packages=setuptools.find_packages(),
     install_requires=install_packs,
     author='Sammy Shuck github.com/ToxicSamN',
     keywords=['pyucs', 'pyucs-samn'],
