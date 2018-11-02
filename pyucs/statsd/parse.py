@@ -1,7 +1,7 @@
 
 import queue
 from datetime import datetime
-from pyucs.logging import Logger
+from pyucs.logging.handler import Logger
 
 
 LOGGERS = Logger(log_file='/var/log/ucs_parser.log', error_log_file='/var/log/ucs_parser_err.log')

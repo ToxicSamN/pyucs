@@ -15,7 +15,7 @@ class Credential:
         disable_warnings(InsecureRequestWarning)
         self.__password = None
         self.__private_file = os.environ.get('RSAPrivateFile' or None)
-        self.__secret = open(os.environ.get('RSASecret' or None), 'r').read()
+        self.__secret = open(os.environ.get('RSASecret' or None), 'r').read().strip()
 
     def get_credential(self, dev=False):
         if dev:

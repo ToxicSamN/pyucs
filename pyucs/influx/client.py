@@ -1,6 +1,6 @@
 
 import queue
-from pyucs.logging import Logger
+from pyucs.logging.handler import Logger
 from influxdb import InfluxDBClient
 
 
@@ -41,12 +41,15 @@ class InfluxDB:
             try:
                 json_data = self.in_q.get_nowait()
                 try:
+                    logger.info('Sending stats: {}'.format(json_data))
                     self.client.write_points(points=[json_data],
                                              time_precision='s',
                                              protocol='json'
                                              )
                 except BaseException:
                     # Writing to InfluxDB was unsuccessful. For now let's just try to resend
+                    logger.error('Failed to Send influx data')
+                    logger.info('Retry Sending stats: {}'.format(json_data))
                     self.client.write_points(points=json_data,
                                              time_precision='s',
                                              protocol='json'

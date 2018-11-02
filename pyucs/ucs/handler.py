@@ -1,25 +1,32 @@
 
 from ucsmsdk.ucshandle import UcsHandle, UcsException
 from ucsmsdk import mometa
-from pyucs.logging import Logger
+from pyucs.logging.handler import Logger
 
 
 class Ucs(UcsHandle):
     """
         This is a custom UCS class that is used to simplify some of the methods and processes
-        with ucsmsdk into a single class class with simple method calls
+        with ucsmsdk into a single class class with simple method calls. The ucsmsdk lacks
+        a lot of built-in 'functionality' and really only provides raw data returned via
+        query_dn and query_classid. These are the only two meaningful methods of ucsmsdk
+        and this class is an attempt to bring some simplified method calls to ucsmsdk
     """
 
     def __init__(self, ip, username, password, port=None, secure=None,
                  proxy=None, timeout=None, query_classids=None):
         super().__init__(ip, username, password, port=port, secure=secure, proxy=proxy, timeout=timeout)
         self._connected = False
+        # define default classids in which the Ucs object will by default
+        # have properties for. Since these are default we assign immutable
+        # and hidden Tuple object here.
         self._default_classids = ('OrgOrg',
                                   'FabricChassisEp',
                                   'ComputeBlade',
                                   'VnicLanConnTempl',
                                   'LsServer')
         self._query_classids = list(self._default_classids)
+        # allow at initialization the option to add to the 'default' property list of managed objects
         if query_classids:
             self._query_classids.append(query_classids)
         # make the _query_classids property an immutable object after initialization
@@ -46,6 +53,12 @@ class Ucs(UcsHandle):
             setattr(self, k, q[k])
 
     def _is_connected(self):
+        """
+        method to check if there is a connection to ucsm
+        and raise an exception if not.
+        This is used as a check prior to running any other
+        methods.
+        """
         if self._connected:
             return True
         else:
@@ -53,35 +66,62 @@ class Ucs(UcsHandle):
                                error_descr='Not currently logged in. Please connect to a UCS domain first')
 
     def query_rn(self, rn, class_id):
+        """
+        Added a missing method that Cisco should add in the ability to query the relative_name (rn)
+        of a managed object
+        :param rn:
+        :param class_id:
+        :return:
+        """
         return self.query_classid(class_id=class_id,
                                   filter_str='(rn, "{}")'.format(rn)
                                   )
 
     def _query_mo(self, class_id, chassis=None, slot=None, vlan_id=None, name=None,
                   service_profile=None, org=None, dn=None, rn=None):
+        """
+        This is a beast of a method and really the brains of the operation of all the
+        availbel methods in this class.
+        :param class_id: Required parameter
+        :param chassis: required for chassis query
+        :param slot: required for chassis/blade query
+        :param vlan_id: required for vlan query
+        :param name:
+        :param service_profile: required for service_profile query
+        :param org: required for org query
+        :param dn: required for dn query
+        :param rn: required for rn query
+        :return: one or more managedObjects
+        """
         self._is_connected()
+
+        # The below is fairly self explanatory and won't be commented
+        # built-in query_dn method
         if dn:
             return self.query_dn(dn=dn)
 
+        # custom query_rn method with an optional org search filter
         if rn:
             if org:
                 return self.query_classid(class_id=class_id,
                                           filter_str='((rn, "{}") and (dn, "{}"))'.format(rn, org))
             return self.query_rn(rn=rn, class_id=class_id)
 
+        # vlan_id and optionally adding the name of the vlan
         if vlan_id:
             if name:
                 return self.query_classid(class_id=class_id,
                                           filter_str='((id, "{}") and (name, "{}"))'.format(vlan_id, name))
             return self.query_classid(class_id=class_id,
                                       filter_str='(id, "{}")'.format(vlan_id))
-
+        # search for anything with a name parameter and optionally use an org search filter
         if name:
             if org:
                 return self.query_classid(class_id=class_id,
                                           filter_str='((name, "{}") and (dn, "{}"))'.format(name, org))
             return self.query_rn(rn=name, class_id=class_id)
 
+        # chassis ID and optionally a blade slot id
         if chassis:
             if slot:
                 return self.query_classid(class_id=class_id,
@@ -89,15 +129,18 @@ class Ucs(UcsHandle):
             return self.query_classid(class_id=class_id,
                                       filter_str='(chassis_id, "{}")'.format(chassis))
 
+        # all chassis blade slots with slot id
         if slot:
             return self.query_classid(class_id=class_id,
                                       filter_str='((slot_id, "{}"))'.format(slot))
 
+        # service profile managedobject
         if service_profile:
             return self.query_classid(class_id=class_id,
                                       filter_str='((dn, "{}"))'.format(service_profile.dn)
                                       )
 
+        # by default return all managedObjects from classid
         return self.query_classid(class_id=class_id)
 
     def get_vnic_template(self, name=None, org=None, dn=None, rn=None):
@@ -193,15 +236,19 @@ class Ucs(UcsHandle):
 
     def get_vnic_stats(self, vnic=None, service_profile=None, ignore_error=False):
         self._is_connected()
+
+        # check if a service profile was provided as a way to reduce returned results
         if isinstance(service_profile, mometa.ls.LsServer.LsServer):
             stats = self.get_vnic_stats(vnic=self.get_vnic(service_profile=service_profile), ignore_error=ignore_error)
             if stats:
                 return stats
 
+        # check if the vnic parameter is a managedobject
         if isinstance(vnic, mometa.vnic.VnicEther.VnicEther):
             if vnic.equipment_dn:
                 return self.query_dn("{}/vnic-stats".format(vnic.equipment_dn))
 
+        # if vnic is a list/tuple then loop through each one to get the stats of each
         if isinstance(vnic, list) or isinstance(vnic, tuple):
             tmp = []
             for v in vnic:
@@ -214,15 +261,19 @@ class Ucs(UcsHandle):
 
     def get_vhba_stats(self, vhba=None, service_profile=None, ignore_error=False):
         self._is_connected()
+
+        # check if a service profile was provided as a way to reduce returned results
         if isinstance(service_profile, mometa.ls.LsServer.LsServer):
             stats = self.get_vhba_stats(vhba=self.get_vnic(service_profile=service_profile), ignore_error=ignore_error)
             if stats:
                 return stats
 
+        # check if the vnic parameter is a managedobject
         if isinstance(vhba, mometa.vnic.VnicFc.VnicFc):
             if vhba.equipment_dn:
                 return self.query_dn("{}/vnic-stats".format(vhba.equipment_dn))
 
+        # if vnic is a list/tuple then loop through each one to get the stats of each
         if isinstance(vhba, list) or isinstance(vhba, tuple):
             tmp = []
             for v in vhba:
