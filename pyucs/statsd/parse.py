@@ -27,6 +27,8 @@ class Parser:
                         logger.debug('Parsed JSON data: {}'.format(i.__str__()))
                         self.out_q.put_nowait(i)
             except queue.Empty:
+                # keep looping waiting for the queue not to be empty
+                #   code reviewer...did you see this comment? If so you might win a prize, let me know!
                 pass
         logger.info('Parser process Stopped')
 
