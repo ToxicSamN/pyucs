@@ -4,7 +4,16 @@ import logging.handlers
 
 
 class Logger:
+    """
+    Custom logging class that fits with how I prefere to log.
+    There may be better or more proper ways of doing this but
+    this works like a charm.
+    This class stores all loggers into a property named loogers.
+    A call to get_logger(name) will search for 'name' in loggers
+    and if found return that logger, otherwise create a new one.
+    """
 
+    # Default log level. This can be changed at initialization of the object
     loglevel = logging.INFO
 
     def __init__(self, log_file='/var/log/ucs.log',
@@ -22,6 +31,15 @@ class Logger:
         self.max_logs = max_logs
 
     def get_logger(self, name):
+        """
+        Search self.loggers for the 'name' parameter value and if found
+        return the already created logger, otherwise create a new one.
+        This sets up a file logger for info and error/exception and an
+        output stream for debugging. These logger types cannot be changed
+        without overriding this method.
+        :param name: Name of the logger to be searched for
+        :return: logger
+        """
 
         if self.loggers.get(name):
             return self.loggers.get(name)
