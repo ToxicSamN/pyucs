@@ -2,6 +2,7 @@
 from ucsmsdk.ucshandle import UcsHandle, UcsException
 from ucsmsdk import mometa
 from pyucs.logging.handler import Logger
+from pycrypt.encryption import AESCipher
 
 
 class Ucs(UcsHandle):
@@ -10,12 +11,16 @@ class Ucs(UcsHandle):
         with ucsmsdk into a single class class with simple method calls. The ucsmsdk lacks
         a lot of built-in 'functionality' and really only provides raw data returned via
         query_dn and query_classid. These are the only two meaningful methods of ucsmsdk
-        and this class is an attempt to bring some simplified method calls to ucsmsdk
+        and this class is an attempt to bring some simplified method calls to ucsmsdk.
+        This class also encrypts the password so that it is not stored in clear text in memory.
     """
 
     def __init__(self, ip, username, password, port=None, secure=None,
                  proxy=None, timeout=None, query_classids=None):
         super().__init__(ip, username, password, port=port, secure=secure, proxy=proxy, timeout=timeout)
+        self.cipher = AESCipher()
+        self._password = self.cipher.encrypt(self._UcsSession__password)
+        self._UcsSession__password = None
         self._connected = False
         # define default classids in which the Ucs object will by default
         # have properties for. Since these are default we assign immutable
@@ -36,7 +41,15 @@ class Ucs(UcsHandle):
         self.connect(**kwargs)
 
     def connect(self, **kwargs):
+        """
+        Connect method so that the password can be decrypted for the connection
+        as well as to populate the default properties of the Ucs object
+        :param kwargs:
+        :return:
+        """
+        self._UcsSession__password = self.cipher.decrypt(self._password, self.cipher.AES_KEY)
         self._connected = self._login(**kwargs)
+        self._UcsSession__password = None
         self.refresh_inventory()
 
     def logout(self, **kwargs):
