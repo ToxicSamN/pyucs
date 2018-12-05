@@ -2,7 +2,7 @@
 from multiprocessing.pool import Pool, MapResult, mapstar, starmapstar, RUN, CLOSE, TERMINATE
 from multiprocessing import cpu_count
 from pyucs.logging.handler import Logger
-from pyucs.ucs.handler import EthPortStat, FcPortStat, EthPortChannelStat, FcPortChannelStat
+from pyucs.statsd.portstats import EthPortStat, FcPortStat, EthPortChannelStat, FcPortChannelStat
 from ucsmsdk import mometa
 from ucsmsdk.mometa.storage.StorageItem import StorageItem
 from ucsmsdk.mometa.vnic.VnicFc import VnicFc
@@ -214,7 +214,7 @@ class StatsCollector:
 
             if data:
                 statsq.put_nowait(data)
-                # logger.info('Stats_Queue Size: {}'.format(statsq.qsize()))
+                logger.debug('Stats_Queue Size: {}'.format(statsq.qsize()))
         except BaseException as e:
             logger.exception('Exception: {}, \n Args: {}'.format(e, e.args))
 

@@ -1,7 +1,7 @@
 import queue
 from datetime import datetime
 from pyucs.logging.handler import Logger
-from pyucs.ucs.handler import EthPortStat, EthPortChannelStat, FcPortStat, FcPortChannelStat
+from pyucs.statsd.portstats import EthPortStat, EthPortChannelStat, FcPortStat, FcPortChannelStat
 from ucsmsdk.mometa.adaptor.AdaptorVnicStats import AdaptorVnicStats
 from ucsmsdk.mometa.sw.SwSystemStatsHist import SwSystemStatsHist
 from ucsmsdk.mometa.storage.StorageItem import StorageItem

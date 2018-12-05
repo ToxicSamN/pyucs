@@ -1,230 +1,9 @@
 
 from ucsmsdk.ucshandle import UcsHandle, UcsException
 from ucsmsdk import mometa
-from pyucs.logging.handler import Logger
 from pycrypt.encryption import AESCipher
-
-
-class Port:
-
-    def __init__(self):
-        self.name = None
-        self.dn = None
-        self.parent_dn = None
-        self._handle = None
-        self.admin_state = None
-        self.max_speed = None
-        self.oper_speed = None
-        self.oper_state = None
-        self.port_id = None
-        self.peer_dn = None
-        self.peer_port_id = None
-        self.peer_slot_id = None
-
-    def pop_base_params(self, port_data):
-        self.name = port_data.name
-        self.dn = port_data.dn
-        self.parent_dn = port_data._ManagedObject__parent_dn
-        self._handle = port_data._handle
-        self.peer_dn = port_data.peer_dn
-        self.admin_state = port_data.admin_state
-        if getattr(port_data, 'max_speed', ''):
-            self.max_speed = port_data.max_speed
-        self.oper_speed = port_data.oper_speed
-        self.oper_state = port_data.oper_state
-        self.port_id = port_data.port_id
-        if getattr(port_data, 'peer_port_id', ''):
-            self.peer_port_id = port_data.peer_port_id
-        if getattr(port_data, 'peer_slot_id', ''):
-            self.peer_slot_id = port_data.peer_slot_id
-
-
-class EthPortStat(Port):
-
-    class EtherLoss:
-
-        def __init__(self, data):
-            self.dn = data.dn
-            self.rn = data.rn
-            self.time_collected = data.time_collected
-            self.intervals = data.intervals
-            self.carrier_sense = data.carrier_sense
-            self.carrier_sense_delta = data.carrier_sense_delta
-            self.excess_collision = data.excess_collision
-            self.excess_collision_delta = data.excess_collision_delta
-            self.giants = data.giants
-            self.giants_delta = data.giants_delta
-            self.multi_collision = data.multi_collision
-            self.multi_collision_delta = data.multi_collision_delta
-            self.single_collision = data.single_collision
-            self.single_collision_delta = data.single_collision_delta
-            self.sqe_test = data.sqe_test
-            self.sqe_test_delta = data.sqe_test_delta
-            self.symbol = data.symbol
-            self.symbol_delta = data.symbol_delta
-
-    class EtherPause:
-
-        def __init__(self, data):
-            self.dn = data.dn
-            self.rn = data.rn
-            self.time_collected = data.time_collected
-            self.intervals = data.intervals
-            self.recv_pause = data.recv_pause
-            self.recv_pause_delta = data.recv_pause_delta
-            self.resets = data.resets
-            self.resets_delta = data.resets_delta
-            self.xmit_pause = data.xmit_pause
-            self.xmit_pause_delta = data.xmit_pause_delta
-
-    class EtherErr:
-
-        def __init__(self, data):
-            self.dn = data.dn
-            self.rn = data.rn
-            self.time_collected = data.time_collected
-            self.intervals = data.intervals
-            self.align = data.align
-            self.align_delta = data.align_delta
-            self.deferred_tx = data.deferred_tx
-            self.deferred_tx_delta = data.deferred_tx_delta
-            self.fcs = data.fcs
-            self.fcs_delta = data.fcs_delta
-            self.int_mac_rx = data.int_mac_rx
-            self.int_mac_rx_delta = data.int_mac_rx_delta
-            self.int_mac_tx = data.int_mac_tx
-            self.int_mac_tx_delta = data.int_mac_tx_delta
-            self.out_discard = data.out_discard
-            self.out_discard_delta = data.out_discard_delta
-            self.rcv = data.rcv
-            self.rcv_delta = data.rcv_delta
-            self.under_size = data.under_size
-            self.under_size_delta = data.under_size_delta
-            self.xmit = data.xmit
-            self.xmit_delta = data.xmit_delta
-
-    class EtherRx:
-
-        def __init__(self, data):
-            self.dn = data.dn
-            self.rn = data.rn
-            self.time_collected = data.time_collected
-            self.intervals = data.intervals
-            self.broadcast_packets = data.broadcast_packets
-            self.broadcast_packets_delta = data.broadcast_packets_delta
-            self.jumbo_packets = data.jumbo_packets
-            self.jumbo_packets_delta = data.jumbo_packets_delta
-            self.multicast_packets = data.multicast_packets
-            self.multicast_packets_delta = data.multicast_packets_delta
-            self.total_bytes = data.total_bytes
-            self.total_bytes_delta = data.total_bytes_delta
-            self.total_packets = data.total_packets
-            self.total_packets_delta = data.total_packets_delta
-            self.unicast_packets = data.unicast_packets
-            self.unicast_packets_delta = data.unicast_packets_delta
-
-    class EtherTx:
-
-        def __init__(self, data):
-            self.dn = data.dn
-            self.rn = data.rn
-            self.time_collected = data.time_collected
-            self.intervals = data.intervals
-            self.broadcast_packets = data.broadcast_packets
-            self.broadcast_packets_delta = data.broadcast_packets_delta
-            self.jumbo_packets = data.jumbo_packets
-            self.jumbo_packets_delta = data.jumbo_packets_delta
-            self.multicast_packets = data.multicast_packets
-            self.multicast_packets_delta = data.multicast_packets_delta
-            self.total_bytes = data.total_bytes
-            self.total_bytes_delta = data.total_bytes_delta
-            self.total_packets = data.total_packets
-            self.total_packets_delta = data.total_packets_delta
-            self.unicast_packets = data.unicast_packets
-            self.unicast_packets_delta = data.unicast_packets_delta
-
-    def __init__(self):
-        super().__init__()
-        self.dn = None
-        self.rn = None
-        self.EtherPauseStats = None
-        self.EtherLossStats = None
-        self.EtherErrStats = None
-        self.EtherRxStats = None
-        self.EtherTxStats = None
-
-    def pause_stats(self, data):
-        self.EtherPauseStats = self.EtherPause(data)
-
-    def loss_stats(self, data):
-        self.EtherLossStats = self.EtherLoss(data)
-
-    def err_stats(self, data):
-        self.EtherErrStats = self.EtherErr(data)
-
-    def rx_stats(self, data):
-        self.EtherRxStats = self.EtherRx(data)
-
-    def tx_stats(self, data):
-        self.EtherTxStats = self.EtherTx(data)
-
-
-class FcPortStat(Port):
-
-    class FcStat:
-        def __init__(self, data):
-            self.time_collected = data.time_collected
-            self.bytes_rx = data.bytes_rx
-            self.bytes_rx_delta = data.bytes_rx_delta
-            self.bytes_tx = data.bytes_tx
-            self.bytes_tx_delta = data.bytes_tx_delta
-            self.packets_tx = data.packets_tx
-            self.packets_tx_delta = data.packets_tx_delta
-            self.packets_rx = data.packets_rx
-            self.packets_rx_delta = data.packets_rx_delta
-
-    class FcErrStat:
-        def __init__(self, data):
-            self.time_collected = data.time_collected
-            self.crc_rx = data.crc_rx
-            self.crc_rx_delta = data.crc_rx_delta
-            self.discard_rx = data.discard_rx
-            self.discard_rx_delta = data.discard_rx_delta
-            self.discard_tx = data.discard_tx
-            self.discard_tx_delta = data.discard_tx_delta
-            self.link_failures = data.link_failures
-            self.link_failures_delta = data.link_failures_delta
-            self.rx = data.rx
-            self.rx_delta = data.rx_delta
-            self.signal_losses = data.signal_losses
-            self.signal_losses_delta = data.signal_losses_delta
-            self.sync_losses = data.sync_losses
-            self.sync_losses_delta = data.sync_losses_delta
-            self.too_long_rx = data.too_long_rx
-            self.too_long_rx_delta = data.too_long_rx_delta
-            self.too_short_rx = data.too_short_rx
-            self.too_short_rx_delta = data.too_short_rx_delta
-            self.tx = data.tx
-            self.tx_delta = data.tx_delta
-
-    def __init__(self):
-        super().__init__()
-        self.FcErrStats = None
-        self.FcStats = None
-
-    def err_stats(self, data):
-        self.FcErrStats = self.FcErrStat(data)
-
-    def stats(self, data):
-        self.FcStats = self.FcStat(data)
-
-
-class EthPortChannelStat(EthPortStat):
-    pass
-
-
-class FcPortChannelStat(FcPortStat):
-    pass
+from pyucs.ucs.vlan.comparison import ListComparison, ComparisonObject
+from pyucs.statsd.portstats import EthPortStat, EthPortChannelStat, FcPortStat, FcPortChannelStat
 
 
 class Ucs(UcsHandle):
@@ -391,8 +170,16 @@ class Ucs(UcsHandle):
         # by default return all managedObjects from classid
         return self.query_classid(class_id=class_id)
 
-    def get_vnic_template(self, name=None, org=None, dn=None, rn=None):
+    def get_vnic_template(self, vnic=None, name=None, org=None, dn=None, rn=None):
         self._is_connected()
+
+        if vnic and isinstance(vnic, list):
+            tmp = []
+            for v in vnic:
+                if v.oper_nw_templ_name:
+                    tmp.append(self._query_mo(class_id='VnicLanConnTempl', dn=v.oper_nw_templ_name))
+            return tmp
+
         return self._query_mo(class_id='VnicLanConnTempl',
                               name=name,
                               org=org,
@@ -405,6 +192,58 @@ class Ucs(UcsHandle):
 
         if service_profile and isinstance(service_profile, mometa.ls.LsServer.LsServer):
             return self._query_mo(class_id='VnicEther',
+                                  service_profile=service_profile,
+                                  dn=dn
+                                  )
+        elif service_profile and isinstance(service_profile, list):
+            tmp = []
+            for s in service_profile:
+                tmp = tmp.__add__(self._query_mo(class_id='VnicEther',
+                                                 service_profile=s
+                                                 ))
+            return tmp
+        elif service_profile and isinstance(service_profile, str):
+            raise UcsException(
+                "InvalidType: Parameter 'service_profile' expected type "
+                "'ucsmsdk.mometa.ls.LsServer.LsServer' and recieved 'str'")
+
+        elif dn:
+            self._query_mo(class_id='VnicEther',
+                           dn=dn
+                           )
+        return self._query_mo(class_id='VnicEther')
+
+    def get_vnic_vlans(self, vnic=None, vnic_template=None, service_profile=None, dn=None):
+        self._is_connected()
+
+        if vnic and isinstance(vnic, mometa.vnic.VnicEther.VnicEther):
+            return self.query_classid('VnicEtherIf',
+                                      filter_str='(dn, "{}")'.format(vnic.dn))
+
+        elif vnic and isinstance(vnic, list):
+            tmp = []
+            for v in vnic:
+                tmp.append(self.query_classid('VnicEtherIf',
+                                              filter_str='(dn, "{}")'.format(v.dn)))
+            return tmp
+
+        elif vnic_template and isinstance(vnic_template, mometa.vnic.VnicLanConnTempl.VnicLanConnTempl):
+            return self.query_classid('VnicEtherIf',
+                                      filter_str='(dn, "{}")'.format(vnic_template.dn))
+        elif vnic_template and isinstance(vnic_template, list):
+            tmp = []
+            for v in vnic_template:
+                tmp.append(self.query_classid('VnicEtherIf',
+                                              filter_str='(dn, "{}")'.format(v.dn)))
+            return tmp
+
+        elif vnic and isinstance(vnic, str):
+            raise UcsException(
+                "InvalidType: Parameter 'vnic' expected type "
+                "'ucsmsdk.mometa.vnic.VnicEther.VnicEther' and recieved 'str'")
+
+        elif service_profile and isinstance(service_profile, mometa.ls.LsServer.LsServer):
+            return self._query_mo(class_id='VnicEtherIf',
                                   service_profile=service_profile,
                                   dn=dn
                                   )
@@ -456,14 +295,18 @@ class Ucs(UcsHandle):
                               rn=rn
                               )
 
-    def get_service_profile(self, name=None, org=None, dn=None, rn=None):
+    def get_service_profile(self, name=None, org=None, dn=None, rn=None, only_active=False):
         self._is_connected()
-        return self._query_mo(class_id='LsServer',
-                              name=name,
-                              org=org,
-                              dn=dn,
-                              rn=rn
-                              )
+        tmp = self._query_mo(class_id='LsServer',
+                             name=name,
+                             org=org,
+                             dn=dn,
+                             rn=rn
+                             )
+        if only_active:
+            tmp = [s for s in tmp if s.assoc_state == 'associated']
+
+        return tmp
 
     def get_chassis(self, name=None, dn=None, rn=None):
         self._is_connected()
@@ -751,3 +594,97 @@ class Ucs(UcsHandle):
         except BaseException as e:
             if not ignore_error:
                 raise UcsException(e)
+
+    def assign_vlan_to_vnic(self, mo, vlan_name):
+        from ucsmsdk.mometa.vnic.VnicEther import VnicEther
+        from ucsmsdk.mometa.vnic.VnicLanConnTempl import VnicLanConnTempl
+        from ucsmsdk.mometa.vnic.VnicEtherIf import VnicEtherIf
+        if isinstance(mo, str):
+            # assume this is a dn value
+            mo = self.query_dn(mo)
+        if isinstance(mo, VnicEther) or isinstance(mo, VnicLanConnTempl):
+
+            vnic_vlan = VnicEtherIf(parent_mo_or_dn=mo,
+                                    name=vlan_name)
+            self.add_mo(vnic_vlan)
+            self.commit()
+            return self.query_dn(vnic_vlan.dn)
+        else:
+            raise UcsException("ManagedObject Invalid Type")
+
+    def create_vlan_global(self, vlan_name, vlan_id):
+        vlan_mo = mometa.fabric.FabricVlan.FabricVlan(parent_mo_or_dn='fabric/lan',
+                                                      sharing='none',
+                                                      name=vlan_name,
+                                                      id=vlan_id,
+                                                      mcast_policy_name='',
+                                                      policy_owner='local',
+                                                      default_net='no',
+                                                      pub_nw_name='',
+                                                      compression_type='included'
+                                                      )
+        self.add_mo(vlan_mo)
+        self.commit()
+        return self.get_vlan(name=vlan_name, vlan_id=vlan_id)
+
+    @staticmethod
+    def audit_vnic_vlans(ucs, vnic_vlans, ignore_same=False):
+        """
+        Takes a list of vnic_vlans and compares them to each other. vnic_vlans must have len >= 2
+        :param vnic_vlans: [[vnic1_vlans],[vnic2_vlans],[vnic3_vlans],[vnicN_vlans]]
+        :param ignore_same: [BOOL] Output the items that are different or output everything including items that are the same
+        :return: comparison_obj
+        """
+
+        from operator import attrgetter
+        meta = {}  # structure will be { vnic.dn: [vlan_id_list] }
+        if vnic_vlans and isinstance(vnic_vlans, list) and len(vnic_vlans) >= 2:
+            for vlans in vnic_vlans:
+                vlans.sort(key=lambda x: x.rn)
+                tmp_dict = {
+                    vlans[0]._ManagedObject__parent_dn: list(map(attrgetter('rn'), vlans))
+                }
+                meta.update(tmp_dict)
+
+            max_index = len(list(meta.keys())) - 1
+            comparison_list = []
+            for i in range(0, max_index+1):
+                if not i == max_index:
+                    for x in range(i+1, max_index+1):
+                        ref = list(meta.keys())[i]
+                        dif = list(meta.keys())[x]
+                        comparison_list.append(
+                            ListComparison(reference_dict={ref: meta[ref]},
+                                           difference_dict={dif: meta[dif]},
+                                           ucs=ucs)
+                        )
+            results = []
+            for l in comparison_list:
+                tmp = l.compare(ignore_same=ignore_same)
+                if tmp:
+                    results.append(tmp)
+
+            if len(results) > 0:
+                return results
+            return None
+
+    def remediate_vnic_vlan_audit(self, vnic_audit):
+        if isinstance(vnic_audit, ComparisonObject):
+            if vnic_audit.ucs == self.ucs:
+                if vnic_audit.operator == '=>':
+                    self.assign_vlan_to_vnic(vnic_audit.reference, vnic_audit.value.replace('if-', ''))
+                elif vnic_audit.operator == '<=':
+                    self.assign_vlan_to_vnic(vnic_audit.difference, vnic_audit.value.replace('if-', ''))
+        elif isinstance(vnic_audit, list):
+            for audit in vnic_audit:
+                if isinstance(audit, ComparisonObject):
+                    if audit.ucs == self.ucs:
+                        if audit.operator == '=>':
+                            self.assign_vlan_to_vnic(audit.reference, audit.value.replace('if-', ''))
+                        elif audit.operator == '<=':
+                            self.assign_vlan_to_vnic(audit.difference, audit.value.replace('if-', ''))
+                else:
+                    raise UcsException(
+                        "Invalid Paramter Type: Expected type 'ComparisonObject' or 'list' of 'ComparisonObject'")
+        else:
+            raise UcsException("Invalid Paramter Type: Expected type 'ComparisonObject' or 'list' of 'ComparisonObject'")
