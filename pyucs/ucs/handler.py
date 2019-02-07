@@ -595,7 +595,7 @@ class Ucs(UcsHandle):
             if not ignore_error:
                 raise UcsException(e)
 
-    def assign_vlan_to_vnic(self, mo, vlan_name):
+    def assign_vlan_to_vnic(self, mo, vlan_name, commit=True):
         from ucsmsdk.mometa.vnic.VnicEther import VnicEther
         from ucsmsdk.mometa.vnic.VnicLanConnTempl import VnicLanConnTempl
         from ucsmsdk.mometa.vnic.VnicEtherIf import VnicEtherIf
@@ -607,12 +607,14 @@ class Ucs(UcsHandle):
             vnic_vlan = VnicEtherIf(parent_mo_or_dn=mo,
                                     name=vlan_name)
             self.add_mo(vnic_vlan)
-            self.commit()
-            return self.query_dn(vnic_vlan.dn)
+            if commit:
+                self.commit()
+                return self.query_dn(vnic_vlan.dn)
+            return vnic_vlan
         else:
             raise UcsException("ManagedObject Invalid Type")
 
-    def create_vlan_global(self, vlan_name, vlan_id):
+    def create_vlan_global(self, vlan_name, vlan_id, commit=True):
         vlan_mo = mometa.fabric.FabricVlan.FabricVlan(parent_mo_or_dn='fabric/lan',
                                                       sharing='none',
                                                       name=vlan_name,
@@ -624,8 +626,10 @@ class Ucs(UcsHandle):
                                                       compression_type='included'
                                                       )
         self.add_mo(vlan_mo)
-        self.commit()
-        return self.get_vlan(name=vlan_name, vlan_id=vlan_id)
+        if commit:
+            self.commit()
+            return self.get_vlan(name=vlan_name, vlan_id=vlan_id)
+        return vlan_mo
 
     @staticmethod
     def audit_vnic_vlans(ucs, vnic_vlans, ignore_same=False):
