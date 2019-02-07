@@ -21,8 +21,12 @@ class InfluxDB:
         self.__timeout = timeout
         self.__retries = retries
         self.client = self.__create_influx_client()
+        self.logger = LOGGERS.get_logger('InfluxDB')
 
-        self._run()
+        try:
+            self._run()
+        except BaseException as e:
+            self.logger.exception('Exception: {}, \n Args: {}'.format(e, e.args))
 
     def __create_influx_client(self):
         return InfluxDBClient(host=self.__host,
@@ -40,20 +44,23 @@ class InfluxDB:
         while True:
             try:
                 json_data = self.in_q.get_nowait()
-                try:
-                    logger.info('Sending stats: {}'.format(json_data))
-                    self.client.write_points(points=[json_data],
-                                             time_precision='s',
-                                             protocol='json'
-                                             )
-                except BaseException:
-                    # Writing to InfluxDB was unsuccessful. For now let's just try to resend
-                    logger.error('Failed to Send influx data')
-                    logger.info('Retry Sending stats: {}'.format(json_data))
-                    self.client.write_points(points=json_data,
-                                             time_precision='s',
-                                             protocol='json'
-                                             )
+                if json_data:
+                    try:
+                        logger.info('Sending stats: {}'.format(json_data))
+                        self.client.write_points(points=[json_data],
+                                                 time_precision='s',
+                                                 protocol='json'
+                                                 )
+                    except BaseException as e:
+                        # Writing to InfluxDB was unsuccessful. For now let's just try to resend
+                        logger.error('Failed to Send influx data {}'.format(json_data))
+                        logger.info('Retry Sending stats: {}'.format(json_data))
+                        self.logger.exception('Exception: {}, \n Args: {}'.format(e, e.args))
+                        self.client.write_points(points=json_data,
+                                                 time_precision='s',
+                                                 protocol='json'
+                                                 )
+                        pass
             except queue.Empty:
                 pass
 
