@@ -406,13 +406,15 @@ class Ucs(UcsHandle):
             if vnic.equipment_dn:
                 return self.query_dn("{}/vnic-stats".format(vnic.equipment_dn))
 
-        # if vnic is a list/tuple then loop through each one to get the stats of each
+        # if vnic is a list/tuple then use query_dns() to get all stats
         if isinstance(vnic, list) or isinstance(vnic, tuple):
-            tmp = []
-            for v in vnic:
-                if v.equipment_dn:
-                    tmp.append(self.get_vnic_stats(v, ignore_error=ignore_error))
-            return tmp
+            stats = []
+            stats_query = [v for v in vnic if isinstance(v, str) and v.endswith('vnic-stats')]
+            if not stats_query:
+                stats_query = ["{}/vnic-stats".format(v.equipment_dn) for v in vnic if v.equipment_dn]
+            if stats_query:
+                stats = self.query_dns(stats_query)
+            return list(stats.values())
         if not ignore_error:
             raise UcsException("InvalidType: Unexpected type with parameter 'vnic'."
                                "Use type VnicEther or list/tuple of VnicEther")
@@ -431,13 +433,15 @@ class Ucs(UcsHandle):
             if vhba.equipment_dn:
                 return self.query_dn("{}/vnic-stats".format(vhba.equipment_dn))
 
-        # if vnic is a list/tuple then loop through each one to get the stats of each
+        # if vhba is a list/tuple then use query_dns() to get all stats
         if isinstance(vhba, list) or isinstance(vhba, tuple):
-            tmp = []
-            for v in vhba:
-                if v.equipment_dn:
-                    tmp.append(self.get_vhba_stats(v, ignore_error=ignore_error))
-            return tmp
+            stats = []
+            stats_query = [v for v in vhba if isinstance(v, str) and v.endswith('vnic-stats')]
+            if not stats_query:
+                stats_query = ["{}/vnic-stats".format(v.equipment_dn) for v in vhba if v.equipment_dn]
+            if stats_query:
+                stats = self.query_dns(stats_query)
+            return list(stats.values())
 
         if not ignore_error:
             raise UcsException("InvalidType: Unexpected type with parameter 'vhba'."
@@ -446,34 +450,67 @@ class Ucs(UcsHandle):
     def get_fabric_etherport_stats(self, port=None, ignore_error=False):
         self._is_connected()
 
-        # check if the vnic parameter is a managedobject
+        # check if the port parameter is a managedobject
         if isinstance(port, mometa.ether.EtherPIo.EtherPIo):
             port_stats = None
             if port.oper_state == 'up':
+                stats_query = ["{}/pause-stats".format(port.dn),
+                              "{}/loss-stats".format(port.dn),
+                              "{}/err-stats".format(port.dn),
+                              "{}/rx-stats".format(port.dn),
+                              "{}/tx-stats".format(port.dn)]
                 port_stats = EthPortStat()
                 port_stats.pop_base_params(port)
-                port_stats.pause_stats(self.query_dn("{}/pause-stats".format(port.dn)))
-                port_stats.loss_stats(self.query_dn("{}/loss-stats".format(port.dn)))
-                port_stats.err_stats(self.query_dn("{}/err-stats".format(port.dn)))
-                port_stats.rx_stats(self.query_dn("{}/rx-stats".format(port.dn)))
-                port_stats.tx_stats(self.query_dn("{}/tx-stats".format(port.dn)))
+                stats = self.query_dns(stats_query)
+                for stat in stats:
+                    if isinstance(stats[stat], mometa.ether.EtherPauseStats.EtherPauseStats):
+                        port_stats.pause_stats(stats[stat])
+                    elif isinstance(stats[stat], mometa.ether.EtherLossStats.EtherLossStats):
+                        port_stats.loss_stats(stats[stat])
+                    elif isinstance(stats[stat], mometa.ether.EtherErrStats.EtherErrStats):
+                        port_stats.err_stats(stats[stat])
+                    elif isinstance(stats[stat], mometa.ether.EtherRxStats.EtherRxStats):
+                        port_stats.rx_stats(stats[stat])
+                    elif isinstance(stats[stat], mometa.ether.EtherTxStats.EtherTxStats):
+                        port_stats.tx_stats(stats[stat])
 
             return port_stats
 
-        # if vnic is a list/tuple then loop through each one to get the stats of each
+        # if ethport is a list/tuple then loop through each one to get the stats of each
         if isinstance(port, list) or isinstance(port, tuple):
-            tmp = []
+            stats_query = []
+            port_stats_dict = {}
+            port_dict = {}
+
+            # build the list of stats dn's for querying
             for p in port:
                 if p.oper_state == 'up':
-                    port_stats = EthPortStat()
-                    port_stats.pop_base_params(p)
-                    port_stats.pause_stats(self.query_dn("{}/pause-stats".format(p.dn)))
-                    port_stats.loss_stats(self.query_dn("{}/loss-stats".format(p.dn)))
-                    port_stats.err_stats(self.query_dn("{}/err-stats".format(p.dn)))
-                    port_stats.rx_stats(self.query_dn("{}/rx-stats".format(p.dn)))
-                    port_stats.tx_stats(self.query_dn("{}/tx-stats".format(p.dn)))
-                    tmp.append(port_stats)
-            return tmp
+                    port_dict.update({p.dn: p})
+                    tmp = ["{}/pause-stats".format(p.dn),
+                           "{}/loss-stats".format(p.dn),
+                           "{}/err-stats".format(p.dn),
+                           "{}/rx-stats".format(p.dn),
+                           "{}/tx-stats".format(p.dn)]
+                    stats_query = stats_query.__add__(tmp)
+
+            stats = self.query_dns(stats_query)
+            for stat in stats:
+                parent_dn = stats[stat]._ManagedObject__parent_dn
+                if not port_stats_dict.get(parent_dn or None):
+                    port_stats_dict.update({parent_dn: EthPortStat()})
+                    port_stats_dict[parent_dn].pop_base_params(port_dict[parent_dn])
+
+                if isinstance(stats[stat], mometa.ether.EtherPauseStats.EtherPauseStats):
+                    port_stats_dict[parent_dn].pause_stats(stats[stat])
+                elif isinstance(stats[stat], mometa.ether.EtherLossStats.EtherLossStats):
+                    port_stats_dict[parent_dn].loss_stats(stats[stat])
+                elif isinstance(stats[stat], mometa.ether.EtherErrStats.EtherErrStats):
+                    port_stats_dict[parent_dn].err_stats(stats[stat])
+                elif isinstance(stats[stat], mometa.ether.EtherRxStats.EtherRxStats):
+                    port_stats_dict[parent_dn].rx_stats(stats[stat])
+                elif isinstance(stats[stat], mometa.ether.EtherTxStats.EtherTxStats):
+                    port_stats_dict[parent_dn].tx_stats(stats[stat])
+            return list(port_stats_dict.values())
         if not ignore_error:
             raise UcsException(99,
                 "InvalidType: Unexpected type with parameter 'port'.Use type EtherPIo or list/tuple of EtherPIo")
@@ -481,28 +518,48 @@ class Ucs(UcsHandle):
     def get_fabric_fcport_stats(self, port=None, ignore_error=False):
         self._is_connected()
 
-        # check if the vnic parameter is a managedobject
+        # check if the port parameter is a managedobject
         if isinstance(port, mometa.fc.FcPIo.FcPIo):
             port_stats = None
             if port.oper_state == 'up':
+                stats_query = ["{}/stats".format(port.dn),
+                               "{}/err-stats".format(port.dn)]
                 port_stats = FcPortStat()
                 port_stats.pop_base_params(port)
-                port_stats.stats(self.query_dn("{}/stats".format(port.dn)))
-                port_stats.err_stats(self.query_dn("{}/err-stats".format(port.dn)))
+                stats = self.query_dns(stats_query)
+
+                for stat in stats:
+                    if isinstance(stats[stat], mometa.fc.FcStats.FcStats):
+                        port_stats.stats(stats[stat])
+                    elif isinstance(stats[stat], mometa.fc.FcErrStats.FcErrStats):
+                        port_stats.err_stats(stats[stat])
 
             return port_stats
 
-        # if vnic is a list/tuple then loop through each one to get the stats of each
+        # if fcport is a list/tuple then loop through each one to get the stats of each
         if isinstance(port, list) or isinstance(port, tuple):
-            tmp = []
+            stats_query = []
+            port_stats_dict = {}
+            port_dict = {}
             for p in port:
                 if p.oper_state == 'up':
-                    port_stats = FcPortStat()
-                    port_stats.pop_base_params(p)
-                    port_stats.err_stats(self.query_dn("{}/err-stats".format(p.dn)))
-                    port_stats.stats(self.query_dn("{}/stats".format(p.dn)))
-                    tmp.append(port_stats)
-            return tmp
+                    port_dict.update({p.dn: p})
+                    tmp = ["{}/stats".format(p.dn),
+                           "{}/err-stats".format(p.dn)]
+                    stats_query = stats_query.__add__(tmp)
+            stats = self.query_dns(stats_query)
+            for stat in stats:
+                parent_dn = stats[stat]._ManagedObject__parent_dn
+                if not port_stats_dict.get(parent_dn or None):
+                    port_stats_dict.update({parent_dn: FcPortStat()})
+                    port_stats_dict[parent_dn].pop_base_params(port_dict[parent_dn])
+
+                if isinstance(stats[stat], mometa.fc.FcStats.FcStats):
+                    port_stats_dict[parent_dn].stats(stats[stat])
+                elif isinstance(stats[stat], mometa.fc.FcErrStats.FcErrStats):
+                    port_stats_dict[parent_dn].err_stats(stats[stat])
+
+            return list(port_stats_dict.values())
         if not ignore_error:
             raise UcsException(99,
                 "InvalidType: Unexpected type with parameter 'port'.Use type FcPIo or list/tuple of FcPIo")
@@ -514,30 +571,66 @@ class Ucs(UcsHandle):
         if isinstance(portchannel, mometa.fabric.FabricEthLanPc.FabricEthLanPc):
             port_stats = None
             if portchannel.oper_state == 'up':
+                stats_query = ["{}/pause-stats".format(portchannel.dn),
+                               "{}/loss-stats".format(portchannel.dn),
+                               "{}/err-stats".format(portchannel.dn),
+                               "{}/rx-stats".format(portchannel.dn),
+                               "{}/tx-stats".format(portchannel.dn)]
                 port_stats = EthPortChannelStat()
                 port_stats.pop_base_params(portchannel)
-                port_stats.pause_stats(self.query_dn("{}/pause-stats".format(portchannel.dn)))
-                port_stats.loss_stats(self.query_dn("{}/loss-stats".format(portchannel.dn)))
-                port_stats.err_stats(self.query_dn("{}/err-stats".format(portchannel.dn)))
-                port_stats.rx_stats(self.query_dn("{}/rx-stats".format(portchannel.dn)))
-                port_stats.tx_stats(self.query_dn("{}/tx-stats".format(portchannel.dn)))
+                stats = self.query_dns(stats_query)
+                for stat in stats:
+                    if isinstance(stats[stat], mometa.ether.EtherPauseStats.EtherPauseStats):
+                        port_stats.pause_stats(stats[stat])
+                    elif isinstance(stats[stat], mometa.ether.EtherLossStats.EtherLossStats):
+                        port_stats.loss_stats(stats[stat])
+                    elif isinstance(stats[stat], mometa.ether.EtherErrStats.EtherErrStats):
+                        port_stats.err_stats(stats[stat])
+                    elif isinstance(stats[stat], mometa.ether.EtherRxStats.EtherRxStats):
+                        port_stats.rx_stats(stats[stat])
+                    elif isinstance(stats[stat], mometa.ether.EtherTxStats.EtherTxStats):
+                        port_stats.tx_stats(stats[stat])
 
             return port_stats
 
         # if vnic is a list/tuple then loop through each one to get the stats of each
         if isinstance(portchannel, list) or isinstance(portchannel, tuple):
-            tmp = []
+            stats_query = []
+            port_stats_dict = {}
+            port_dict = {}
+
+            # build the list of stats dn's for querying
             for p in portchannel:
                 if p.oper_state == 'up':
-                    port_stats = EthPortChannelStat()
-                    port_stats.pop_base_params(p)
-                    port_stats.pause_stats(self.query_dn("{}/pause-stats".format(p.dn)))
-                    port_stats.loss_stats(self.query_dn("{}/loss-stats".format(p.dn)))
-                    port_stats.err_stats(self.query_dn("{}/err-stats".format(p.dn)))
-                    port_stats.rx_stats(self.query_dn("{}/rx-stats".format(p.dn)))
-                    port_stats.tx_stats(self.query_dn("{}/tx-stats".format(p.dn)))
-                    tmp.append(port_stats)
-            return tmp
+                    port_dict.update({p.dn: p})
+                    tmp = ["{}/pause-stats".format(p.dn),
+                           "{}/loss-stats".format(p.dn),
+                           "{}/err-stats".format(p.dn),
+                           "{}/rx-stats".format(p.dn),
+                           "{}/tx-stats".format(p.dn)]
+                    stats_query = stats_query.__add__(tmp)
+
+            stats = self.query_dns(stats_query)
+            for stat in stats:
+                parent_dn = stats[stat]._ManagedObject__parent_dn
+                if port_stats_dict.get(parent_dn or None):
+                    port_stats = port_stats_dict[parent_dn]
+                else:
+                    port_stats_dict.update({parent_dn: EthPortChannelStat()})
+                    port_stats_dict[parent_dn].pop_base_params(port_dict[parent_dn])
+
+                if isinstance(stats[stat], mometa.ether.EtherPauseStats.EtherPauseStats):
+                    port_stats_dict[parent_dn].pause_stats(stats[stat])
+                elif isinstance(stats[stat], mometa.ether.EtherLossStats.EtherLossStats):
+                    port_stats_dict[parent_dn].loss_stats(stats[stat])
+                elif isinstance(stats[stat], mometa.ether.EtherErrStats.EtherErrStats):
+                    port_stats_dict[parent_dn].err_stats(stats[stat])
+                elif isinstance(stats[stat], mometa.ether.EtherRxStats.EtherRxStats):
+                    port_stats_dict[parent_dn].rx_stats(stats[stat])
+                elif isinstance(stats[stat], mometa.ether.EtherTxStats.EtherTxStats):
+                    port_stats_dict[parent_dn].tx_stats(stats[stat])
+
+            return list(port_stats_dict.values())
         if not ignore_error:
             raise UcsException(99,
                 "InvalidType: Unexpected type with parameter 'portchannel'.Use type EtherPIo or list/tuple of EtherPIo")
@@ -549,24 +642,44 @@ class Ucs(UcsHandle):
         if isinstance(portchannel, mometa.fabric.FabricFcSanPc.FabricFcSanPc):
             port_stats = None
             if portchannel.oper_state == 'up':
+                stats_query = ["{}/stats".format(portchannel.dn),
+                               "{}/err-stats".format(portchannel.dn)]
                 port_stats = FcPortChannelStat()
                 port_stats.pop_base_params(portchannel)
-                port_stats.stats(self.query_dn("{}/stats".format(portchannel.dn)))
-                port_stats.err_stats(self.query_dn("{}/err-stats".format(portchannel.dn)))
+                stats = self.query_dns(stats_query)
+
+                for stat in stats:
+                    if isinstance(stats[stat], mometa.fc.FcStats.FcStats):
+                        port_stats.stats(stats[stat])
+                    elif isinstance(stats[stat], mometa.fc.FcErrStats.FcErrStats):
+                        port_stats.err_stats(stats[stat])
 
             return port_stats
 
-        # if vnic is a list/tuple then loop through each one to get the stats of each
+            # if fcport is a list/tuple then loop through each one to get the stats of each
         if isinstance(portchannel, list) or isinstance(portchannel, tuple):
-            tmp = []
+            stats_query = []
+            port_stats_dict = {}
+            port_dict = {}
             for p in portchannel:
                 if p.oper_state == 'up':
-                    port_stats = FcPortChannelStat()
-                    port_stats.pop_base_params(p)
-                    port_stats.err_stats(self.query_dn("{}/err-stats".format(p.dn)))
-                    port_stats.stats(self.query_dn("{}/stats".format(p.dn)))
-                    tmp.append(port_stats)
-            return tmp
+                    port_dict.update({p.dn: p})
+                    tmp = ["{}/stats".format(p.dn),
+                           "{}/err-stats".format(p.dn)]
+                    stats_query = stats_query.__add__(tmp)
+            stats = self.query_dns(stats_query)
+            for stat in stats:
+                parent_dn = stats[stat]._ManagedObject__parent_dn
+                if not port_stats_dict.get(parent_dn or None):
+                    port_stats_dict.update({parent_dn: FcPortChannelStat()})
+                    port_stats_dict[parent_dn].pop_base_params(port_dict[parent_dn])
+
+                if isinstance(stats[stat], mometa.fc.FcStats.FcStats):
+                    port_stats_dict[parent_dn].stats(stats[stat])
+                elif isinstance(stats[stat], mometa.fc.FcErrStats.FcErrStats):
+                    port_stats_dict[parent_dn].err_stats(stats[stat])
+
+            return list(port_stats_dict.values())
         if not ignore_error:
             raise UcsException(99,
                 "InvalidType: Unexpected type with parameter 'portchannel'.Use type FcPIo or list/tuple of FcPIo")

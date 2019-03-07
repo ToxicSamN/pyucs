@@ -82,67 +82,70 @@ class StatsCollector:
         logger.info('StatsCollector statsd started')
         # Define the number os parallel processes to run, typically the best results are cpu_count()
         # experiment with the sizing to determine the best number
-        parallelism_thread_count = cpu_count()
+        parallelism_thread_count = 1
         rawdata = []
         thread_pool_args = []
         thread = 1
+        dict_data = {}
 
         try:
             tmp = None
+            # vnic_stats_dns = []
             logger.info('Collecting all vnics')
-            tmp = self.ucs.get_vnic()
-            rawdata = rawdata.__add__(tmp)
-            logger.info('Found {} vnics'.format(len(tmp)))
+            dict_data.update({VnicEther: self.ucs.get_vnic()})
+            # rawdata = rawdata.append(tmp)
+            logger.info('Found {} vnics'.format(len(dict_data[VnicEther])))
 
             tmp = None
             logger.info('Collecting all vhbas')
-            tmp = self.ucs.get_vhba()
-            rawdata = rawdata.__add__(tmp)
-            logger.info('Found {} vhbas'.format(len(tmp)))
+            dict_data.update({VnicFc: self.ucs.get_vhba()})
+            # rawdata = rawdata.__add__(tmp)
+            logger.info('Found {} vhbas'.format(len(dict_data[VnicFc])))
 
             tmp = None
             logger.info('Collecting all fabric ether ports')
-            tmp = self.ucs.get_fabric_etherport()
-            rawdata = rawdata.__add__(tmp)
-            logger.info('Found {} fabric ether ports'.format(len(tmp)))
+            dict_data.update({EtherPIo: self.ucs.get_fabric_etherport()})
+            # rawdata = rawdata.__add__(tmp)
+            logger.info('Found {} fabric ether ports'.format(len(dict_data[EtherPIo])))
 
             tmp = None
             logger.info('Collecting all fabric FC ports')
-            tmp = self.ucs.get_fabric_fcport()
-            rawdata = rawdata.__add__(tmp)
-            logger.info('Found {} fabric FC ports'.format(len(tmp)))
+            dict_data.update({FcPIo: self.ucs.get_fabric_fcport()})
+            # rawdata = rawdata.__add__(tmp)
+            logger.info('Found {} fabric FC ports'.format(len(dict_data[FcPIo])))
 
             tmp = None
             logger.info('Collecting all fabric ether port channels')
-            tmp = self.ucs.get_port_channel(port_type='Ethernet')
-            rawdata = rawdata.__add__(tmp)
-            logger.info('Found {} fabric ether port channels'.format(len(tmp)))
+            dict_data.update({FabricEthLanPc: self.ucs.get_port_channel(port_type='Ethernet')})
+            # rawdata = rawdata.__add__(tmp)
+            logger.info('Found {} fabric ether port channels'.format(len(dict_data[FabricEthLanPc])))
 
             tmp = None
             logger.info('Collecting all fabric fc port channels')
-            tmp = tmp = self.ucs.get_port_channel(port_type='Fc')
-            rawdata = rawdata.__add__(tmp)
-            logger.info('Found {} fabric ether fc channels'.format(len(tmp)))
+            dict_data.update({FabricFcSanPc: self.ucs.get_port_channel(port_type='Fc')})
+            # rawdata = rawdata.__add__(tmp)
+            logger.info('Found {} fabric ether fc channels'.format(len(dict_data[FabricFcSanPc])))
 
             tmp = None
             logger.info('Collecting all fabric storage data')
-            tmp = self.ucs.get_system_storage()
-            rawdata = rawdata.__add__(tmp)
-            logger.info('Found {} storage datum'.format(len(tmp)))
+            dict_data.update({StorageItem: self.ucs.get_system_storage()})
+            # rawdata = rawdata.__add__(tmp)
+            logger.info('Found {} storage datum'.format(len(dict_data[StorageItem])))
 
             tmp = None
             logger.info('Collecting all fabric kernel data')
-            tmp = self.ucs.get_system_stats(ignore_error=True)
-            rawdata = rawdata.__add__(tmp)
-            logger.info('Found {} kernel datum'.format(len(tmp)))
+            dict_data.update({SwSystemStatsHist: self.ucs.get_system_stats(ignore_error=True)})
+            # rawdata = rawdata.__add__(tmp)
+            logger.info('Found {} kernel datum'.format(len(dict_data[SwSystemStatsHist])))
 
             # create thread pool args and launch _query_thread_pool_map to map the args to _query_stats
             #  define the threading group sizes. This will pair down the number of entities
             #  that will be collected per thread and allowing ucs to multi-thread the queries
             logger.info('Raw Data count: {}'.format(len(rawdata)))
-            for data_chunk in rawdata:
+            # for data_chunk in rawdata:
+            for data_chunk in dict_data:
                 thread_pool_args.append(
-                    [self.ucs, data_chunk, thread, statsq])
+                    [self.ucs, {data_chunk: dict_data[data_chunk]}, thread, statsq])
                 thread += 1
 
             # this is a custom thread throttling function.
@@ -187,33 +190,33 @@ class StatsCollector:
         logger = LOGGERS.get_logger('_query_stats')
         try:
             ucs, device_chunk, thread_id, statsq = thread_args
-            # logger.info('Function Args: {}'.format(thread_args))
+            logger.debug('Start Query Stats {}'.format(thread_id))
 
             # Currently the only stats being collected are vnic and vhba
-            # additional stats can be collected as well and would eb plugged in here.
-            if isinstance(device_chunk, VnicEther):
-                data = ucs.get_vnic_stats(vnic=device_chunk, ignore_error=True)
-            elif isinstance(device_chunk, VnicFc):
-                data = ucs.get_vhba_stats(vhba=device_chunk, ignore_error=True)
-            elif isinstance(device_chunk, FabricFcSanPc):
-                data = ucs.get_fabric_fcportchannel_stats(portchannel=device_chunk, ignore_error=True)
-            elif isinstance(device_chunk, FabricEthLanPc):
-                data = ucs.get_fabric_etherportchannel_stats(portchannel=device_chunk, ignore_error=True)
-            elif isinstance(device_chunk, EtherPIo):
-                data = ucs.get_fabric_etherport_stats(port=device_chunk, ignore_error=True)
-            elif isinstance(device_chunk, FcPIo):
-                data = ucs.get_fabric_fcport_stats(port=device_chunk, ignore_error=True)
-            elif isinstance(device_chunk, StorageItem):
-                data = ucs.get_system_storage_stats(storageitem=device_chunk, ignore_error=True)
-            elif isinstance(device_chunk, SwSystemStatsHist):
+            # additional stats can be collected as well and would be plugged in here.
+            if device_chunk.get(VnicEther or None):
+                data = ucs.get_vnic_stats(vnic=device_chunk[VnicEther], ignore_error=True)
+            elif device_chunk.get(VnicFc or None):
+                data = ucs.get_vhba_stats(vhba=device_chunk[VnicFc], ignore_error=True)
+            elif device_chunk.get(FabricFcSanPc or None):
+                data = ucs.get_fabric_fcportchannel_stats(portchannel=device_chunk[FabricFcSanPc], ignore_error=True)
+            elif device_chunk.get(FabricEthLanPc or None):
+                data = ucs.get_fabric_etherportchannel_stats(portchannel=device_chunk[FabricEthLanPc], ignore_error=True)
+            elif device_chunk.get(EtherPIo or None):
+                data = ucs.get_fabric_etherport_stats(port=device_chunk[EtherPIo], ignore_error=True)
+            elif device_chunk.get(FcPIo or None):
+                data = ucs.get_fabric_fcport_stats(port=device_chunk[FcPIo], ignore_error=True)
+            elif device_chunk.get(StorageItem or None):
+                data = ucs.get_system_storage_stats(storageitem=device_chunk[StorageItem], ignore_error=True)
+            elif device_chunk.get(SwSystemStatsHist or None):
                 # actual kernel stats are being passed instead of kernel managed objects
-                data = device_chunk
+                data = device_chunk[SwSystemStatsHist]
             else:
                 logger.error('Object Type not Found: {}'.format(type(device_chunk)))
                 data = None
-
+            logger.debug('End Query Stats {}'.format(thread_id))
             if data:
-                statsq.put_nowait(data)
+                [statsq.put_nowait(d) for d in data]
                 logger.debug('Stats_Queue Size: {}'.format(statsq.qsize()))
         except BaseException as e:
             logger.exception('Exception: {}, \n Args: {}'.format(e, e.args))
