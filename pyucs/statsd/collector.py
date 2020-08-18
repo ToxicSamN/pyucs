@@ -55,7 +55,7 @@ class CollectorProcessPool(Pool):
         return result
 
 
-@addClassLogger()
+@addClassLogger
 class StatsCollector:
     """
         This class is used as a statistics collector of specific devices for the UCS.
