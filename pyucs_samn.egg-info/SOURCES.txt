@@ -5,8 +5,9 @@ pyucs/credentials/__init__.py
 pyucs/credentials/credstore.py
 pyucs/influx/__init__.py
 pyucs/influx/client.py
-pyucs/logging/__init__.py
-pyucs/logging/handler.py
+pyucs/log/__init__.py
+pyucs/log/decorators.py
+pyucs/log/setup.py
 pyucs/statsd/__init__.py
 pyucs/statsd/collector.py
 pyucs/statsd/parse.py

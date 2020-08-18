@@ -16,7 +16,7 @@ logger.addHandler(handler)
 print(os.getcwd())
 if platform.platform().lower().find('windows') >= 0:
     venv_cmd = os.path.join(os.getcwd(), "venv\\Scripts\\activate")
-elif platform.platform().lower().find('linux') >= 0:
+elif platform.platform().lower().find('linux') >= 0 or platform.platform().lower().find('macos') >= 0:
     venv_cmd = "source {}".format(os.path.join(os.getcwd(), "venv/bin/activate"))
 p = subprocess.Popen('{} && {} && python setup.py sdist bdist_wheel'.format(venv_cmd, "pip list"),
                      shell=True,
