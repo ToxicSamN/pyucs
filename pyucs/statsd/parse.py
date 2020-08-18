@@ -1,15 +1,13 @@
 import queue
 from datetime import datetime
-from pyucs.logging.handler import Logger
+from pyucs.log.decorators import addClassLogger
 from pyucs.statsd.portstats import EthPortStat, EthPortChannelStat, FcPortStat, FcPortChannelStat
 from ucsmsdk.mometa.adaptor.AdaptorVnicStats import AdaptorVnicStats
 from ucsmsdk.mometa.sw.SwSystemStatsHist import SwSystemStatsHist
 from ucsmsdk.mometa.storage.StorageItem import StorageItem
 
 
-LOGGERS = Logger(log_file='/var/log/ucs_parser.log', error_log_file='/var/log/ucs_parser_err.log')
-
-
+@addClassLogger
 class Parser:
 
     def __init__(self, statsq, influxq):
@@ -24,9 +22,8 @@ class Parser:
         queue to be able to parse the data to json.
         :return: None
         """
-        # establish the logger
-        logger = LOGGERS.get_logger('Parser')
-        logger.info('Parser process Started')
+
+        self.__log.info('Parser process Started')
         # running as a background process and should be in an infinite loop
         while True:
             try:
@@ -40,7 +37,7 @@ class Parser:
                     # process lets parse the array of dicts down to single entries into the queue
                     # to be processed by influx
                     for i in influx_series:
-                        logger.info('Parsed JSON data: {}'.format(i.__str__()))
+                        self.__log.info('Parsed JSON data: {}'.format(i.__str__()))
                         # store the json data into the influx queue
                         self.out_q.put_nowait(i)
             except queue.Empty:
@@ -49,7 +46,7 @@ class Parser:
                 #   code reviewer...this is a test to see if you actually reviewed the code
                 #     did you see this comment? If so you might win a prize, let me know!
                 pass
-        logger.info('Parser process Stopped')
+        self.__log.info('Parser process Stopped')
 
     def _parse_data(self, data):
         """
@@ -59,7 +56,6 @@ class Parser:
         """
         json_series = []
 
-        logger = LOGGERS.get_logger('Parser_data_parser')
         try:
             if isinstance(data, FcPortChannelStat):
                 json_series.append(self._prep_fc_port(data, 'fcportchannel'))
@@ -80,10 +76,10 @@ class Parser:
 
             return json_series
         except BaseException as e:
-            logger.error('Parsing error: \nUcs: {} \nDevice: {}\nParent: {}'.format(data._handle.ucs,
+            self.__log.error('Parsing error: \nUcs: {} \nDevice: {}\nParent: {}'.format(data._handle.ucs,
                                                                                     data.dn,
                                                                                     data._ManagedObject__parent_dn))
-            logger.exception('Exception: {}, \n Args: {}'.format(e, e.args))
+            self.__log.exception('Exception: {}, \n Args: {}'.format(e, e.args))
 
     def _prep_ether_port(self, data, port_type):
         """
@@ -236,7 +232,6 @@ class Parser:
         return json_series
 
     def _prep_vhba(self, data):
-        logger = LOGGERS.get_logger('_prep_vhba')
         json_series = []
         parent_type = data.dn.split('/')[1]
         if parent_type.find('rack-unit-') >= 0:
@@ -305,7 +300,6 @@ class Parser:
         if not isinstance(tags, dict):
             raise TypeError("Parameter 'tags' expected type dict but recieved type '{}'".format(type(tags)))
 
-        logger = LOGGERS.get_logger('Parser _format_json')
         time_collected = getattr(rawdata, 'time_collected', datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%S.%f'))
         collected_time = datetime.strptime(time_collected, '%Y-%m-%dT%H:%M:%S.%f')
         collected_time = datetime.utcfromtimestamp(collected_time.timestamp())

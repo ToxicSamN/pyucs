@@ -1,3 +1,4 @@
+
 class ComparisonObject:
 
     def __init__(self):

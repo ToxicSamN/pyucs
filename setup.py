@@ -10,7 +10,7 @@ with open("README.md", "r") as fh:
 
 setup(
     name='pyucs-samn',
-    version='2.0.4',
+    version='2.0.5',
     description='Customized UCS Python Module',
 	long_description=long_description,
     license='Apache',
